@@ -1,6 +1,9 @@
 import { Play } from 'phosphor-react'
-// import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as zod from 'zod'
+import { useState } from 'react'
+
 import {
   CountdownContainer,
   FormContainer,
@@ -11,12 +14,59 @@ import {
   TaskInput,
 } from './styles'
 
-function Home() {
-  const { register, handleSubmit, watch } = useForm()
+const newCicleFormValidationSchema = zod.object({
+  task: zod.string().min(3, 'Info the task'),
+  minutesAmount: zod
+    .number()
+    .min(5, 'Your task must be higher than 5 minutes')
+    .max(60, 'Your task needs to be less than 60 minutes'),
+})
 
-  const handleCreateNewCycle = (data: any) => {
-    console.log(data)
+type NewCycleFormData = zod.infer<typeof newCicleFormValidationSchema>
+interface Cycle {
+  id: string
+  task: string
+  minutesAmount: number
+}
+
+function Home() {
+  const [cycles, setCycles] = useState<Cycle[]>([])
+  const [activeCycleId, setActiveCycleId] = useState<string | null>(null)
+  const [amountSecondsPassed, setAmountSecondsPassed] = useState(0)
+
+  const { register, handleSubmit, watch, reset } = useForm<NewCycleFormData>({
+    resolver: zodResolver(newCicleFormValidationSchema),
+    defaultValues: {
+      task: '',
+      minutesAmount: 0,
+    },
+  })
+
+  const handleCreateNewCycle = (data: NewCycleFormData) => {
+    const id = String(new Date().getTime())
+
+    const newCycle: Cycle = {
+      id,
+      task: data.task,
+      minutesAmount: data.minutesAmount,
+    }
+
+    setCycles((state) => [...state, newCycle])
+    setActiveCycleId(id)
+
+    reset()
   }
+
+  const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
+
+  const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0
+  const currentSeconds = activeCycle ? totalSeconds - amountSecondsPassed : 0
+
+  const minutesAmount = Math.floor(currentSeconds / 60)
+  const secondsAmount = currentSeconds % 60
+
+  const minutes = String(minutesAmount).padStart(2, '0') // padStart -> if a string dont have 2 chars, padStart will put a 0 in the Stars :)
+  const seconds = String(secondsAmount).padStart(2, '0') // padStart -> if a string dont have 2 chars, padStart will put a 0 in the Stars :)
 
   const task = watch('task')
   const isSubmitDisabled = !task // Readability const
@@ -56,15 +106,15 @@ function Home() {
         </FormContainer>
 
         <CountdownContainer>
-          <span>0</span>
-          <span>0</span>
+          <span>{minutes[0]}</span>
+          <span>{minutes[1]}</span>
           <Separator>:</Separator>
-          <span>0</span>
-          <span>0</span>
+          <span>{seconds[0]}</span>
+          <span>{seconds[0]}</span>
         </CountdownContainer>
         <StartCountdownButton
           type="submit"
-          disabled={!isSubmitDisabled}
+          disabled={isSubmitDisabled}
           // onSubmit={resetForm}
         >
           <Play size={24} />
